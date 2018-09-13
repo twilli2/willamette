@@ -2,18 +2,22 @@ library(tidyverse)
 grad_co2 <- filter(flux_data, compound == "co2", plot != "C" & plot != "P") %>% 
   group_by(date,field,plot) %>% 
   summarize(flux_mean = mean (flux,na.rm = T))    
-grad_co2  
 ggplot(grad_co2, aes(x = date, y = flux_mean, color = plot)) +
-  geom_point() +
+  geom_point(position = "jitter") +
   geom_line() +
   facet_wrap(~field)
 
 
 library(RColorBrewer)
-ggplot(grad_co2,aes(x = plot, y = flux_mean)) +
-  geom_boxplot(fill = "blue", color = "goldenrod2", size = .05, alpha = 0.7) +
+ggplot(grad_co2,aes(x = plot, y = flux_mean, fill = plot)) +
+  geom_boxplot(color = "black", size = .05, alpha = 0.7) +
+  stat_boxplot(geom = "errorbar") +
   facet_grid(.~field)
 
+ggplot(data = filter(flux_data, compound == "co2"))+
+  geom_smooth(mapping = (aes(x = soiltemp, y = flux)))
+
+?geom_boxplot
     outlier.color = "#1F3552", outlier.shape = 20, notch=FALSE) +
     scale_x_discrete(name = "% of Fertilizer") +
     scale_y_continuous(name = "LOG CO2 FLUX\n(mg C cm-2 h-1)",

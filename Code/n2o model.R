@@ -1,0 +1,115 @@
+library(modelr)
+par(mfrow =c(3,1))
+n <- flux_data %>% 
+  filter(plot != "C" & plot != "P", compound == "n2o") 
+View(n)
+n %>% 
+  ggplot(aes(soiltemp, flux)) +
+  geom_line() +
+  ggtitle("Full data = ")
+n_mod2 <- lm(flux ~ plot, data = n)
+grid <- n %>% 
+  data_grid(plot) %>% 
+  add_predictions(n_mod2)
+grid
+n_mod <- lm(flux ~ soiltemp + plot + date, data = n)
+ggplot(n, aes(plot)) +
+  geom_point(aes(y = flux)) +
+  geom_point(data = grid, aes(y = pred), color = "red",size = 4)
+ggplot(n, aes(soiltemp, flux))+
+  geom_point(aes(color = plot))+
+  facet_wrap(~field)
+
+mod2 <- lm(flux ~ soiltemp + plot, data = filter(n, plot !="C" & plot !="P"))
+mod3 <- lm(flux ~ soiltemp * plot, data = filter(n, plot !="C" & plot !="P"))
+grid <- filter(n, plot !="C" & plot !="P") %>%
+  data_grid(soiltemp, plot) %>% 
+  gather_predictions(mod2, mod3)
+grid
+ggplot(n, aes(soiltemp, flux, color = plot))+
+  geom_point() +
+  geom_line(data = grid, aes(y = pred), size = 2)+
+  facet_wrap(~ model)
+n %>% 
+  add_predictions(n_mod) %>% 
+  ggplot(aes(soiltemp, pred)) +
+  geom_point() +
+  ggtitle("Linear trend +")
+
+n %>% 
+  add_residuals(n_mod) %>% 
+  ggplot(aes(date, resid, color = plot)) +
+  geom_hline(yintercept = 0, color = "white", size = 3) +
+  geom_point() +
+  ggtitle("Remaining pattern")+
+  geom_smooth(color = "black")+
+  facet_wrap(~plot)
+
+by_field <- n %>% 
+  group_by(field) %>% 
+  nest()
+field_model <- function(df) {
+  lm(flux ~ soiltemp, data = df)
+}
+models <- map(by_field$data, field_model)
+by_field <- by_field %>% 
+  mutate(model = map(data, field_model))
+by_field <- by_field %>% 
+  mutate(
+    resids = map2(data, model, add_residuals)
+  )
+by_field
+resids <- unnest(by_field, resids)
+resids %>% 
+  ggplot(aes(soiltemp, resid)) +
+  geom_line(aes(group = field), alpha = 1/3) +
+  geom_smooth(se = FALSE)
+resids %>% 
+  ggplot(aes(soiltemp, resid, group = field)) +
+  geom_line(alpha = 1/3) +
+  facet_wrap(~field)
+
+broom::glance(n_mod)
+glance <- by_field %>% 
+  mutate(glance = map(model, broom::glance)) %>% 
+  unnest(glance, .drop = TRUE)
+library(broom)
+glance %>% 
+  arrange(r.squared)
+glance %>% 
+  ggplot(aes(field, r.squared)) +
+  geom_jitter(width = 0.5)
+
+library(splines)
+model_matrix(n, flux ~ ns(soiltemp, 2))
+n
+ggplot(n,aes(soiltemp, flux)) +
+  geom_point()
+mod5 <- lm(flux ~ ns(soiltemp, 5), data = n)
+mod5
+grid <- n %>% 
+  data_grid(x = seq_range("soiltemp", n = 50, expand = 0.1)) %>% 
+  gather_predictions(mod5, .pred = "flux")
+
+ggplot(n, aes(soiltemp, flux)) + 
+  geom_point() +
+  geom_line(data = grid, colour = "red") +
+  facet_wrap(~ field)
+View(n)
+n2<- n %>% 
+  mutate(lflux = log2(flux), lsoiltemp = log2(soiltemp))
+mod_1 <- lm(lflux ~ lsoiltemp, data = n2)
+grid <- n2 %>%
+  data_grid(soiltemp = seq_range(soiltemp, 20)) %>% 
+  mutate(lsoiltemp = log2(soiltemp)) %>% 
+  add_predictions(mod_1, "lflux") %>% 
+  mutate(flux = 2 ^ lflux)
+ggplot(n2,aes(soiltemp,flux))+
+  geom_hex(bins = 15) +
+  geom_line(data = grid, color = "red", size = 1)
+n2 <- n2 %>% 
+  add_residuals(mod_1, "lresid")
+ggplot(n2, aes(lsoiltemp, lresid))+
+  geom_hex(bins = 15)
+ggplot(n2, aes(field,lresid)) + geom_boxplot()
+ggplot(n2, aes(plot,lresid)) + geom_boxplot()
