@@ -1,24 +1,44 @@
 library(modelr)
-par(mfrow =c(3,1))
+library(tidyverse)
+library(splines)
+
 n <- flux_data %>% 
   filter(plot != "C" & plot != "P", compound == "n2o") 
-View(n)
+
 n %>% 
   ggplot(aes(soiltemp, flux)) +
   geom_line() +
   ggtitle("Full data = ")
+
+n_mod <- lm(flux ~ soiltemp + plot + date, data = n)
+
+n %>% 
+  add_predictions(n_mod) %>% 
+  ggplot(aes(soiltemp, pred)) +
+  geom_smooth() +
+  ggtitle("Linear trend +")
+
+n %>% 
+  add_residuals(n_mod) %>% 
+  ggplot(aes(soiltemp, resid, color = plot)) +
+  geom_hline(yintercept = 0, color = "white", size = 3) +
+  geom_line() +
+  ggtitle("Remaining pattern")+
+  geom_smooth(color = "black")
+
 n_mod2 <- lm(flux ~ plot, data = n)
 grid <- n %>% 
   data_grid(plot) %>% 
   add_predictions(n_mod2)
 grid
-n_mod <- lm(flux ~ soiltemp + plot + date, data = n)
+
 ggplot(n, aes(plot)) +
   geom_point(aes(y = flux)) +
   geom_point(data = grid, aes(y = pred), color = "red",size = 4)
+
 ggplot(n, aes(soiltemp, flux))+
   geom_point(aes(color = plot))+
-  facet_wrap(~field)
+  facet_wrap(~plot)
 
 mod2 <- lm(flux ~ soiltemp + plot, data = filter(n, plot !="C" & plot !="P"))
 mod3 <- lm(flux ~ soiltemp * plot, data = filter(n, plot !="C" & plot !="P"))
@@ -30,20 +50,6 @@ ggplot(n, aes(soiltemp, flux, color = plot))+
   geom_point() +
   geom_line(data = grid, aes(y = pred), size = 2)+
   facet_wrap(~ model)
-n %>% 
-  add_predictions(n_mod) %>% 
-  ggplot(aes(soiltemp, pred)) +
-  geom_point() +
-  ggtitle("Linear trend +")
-
-n %>% 
-  add_residuals(n_mod) %>% 
-  ggplot(aes(date, resid, color = plot)) +
-  geom_hline(yintercept = 0, color = "white", size = 3) +
-  geom_point() +
-  ggtitle("Remaining pattern")+
-  geom_smooth(color = "black")+
-  facet_wrap(~plot)
 
 by_field <- n %>% 
   group_by(field) %>% 
@@ -113,3 +119,25 @@ ggplot(n2, aes(lsoiltemp, lresid))+
   geom_hex(bins = 15)
 ggplot(n2, aes(field,lresid)) + geom_boxplot()
 ggplot(n2, aes(plot,lresid)) + geom_boxplot()
+
+mod1 <- lm(lflux ~ plot * soiltemp * date, data = n2)
+n2 %>% 
+  add_residuals(mod1, "resid") %>% 
+  ggplot(aes(plot, resid)) + 
+  geom_hline(yintercept = 0, size = 2, colour = "white") + 
+  geom_boxplot()
+summary(mod1)
+anova(mod1)
+
+mod <- lm(flux ~ plot * ns(soiltemp, 5), data = n)
+
+n %>% 
+  data_grid(plot, soiltemp = seq_range(soiltemp, n = 13)) %>% 
+  add_predictions(mod) %>% 
+  ggplot(aes(soiltemp, pred, colour = plot)) + 
+  geom_line() +
+  geom_point()
+
+n2 %>% 
+  ggplot(aes(x = lflux)) +
+  geom_histogram()

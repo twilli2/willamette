@@ -9,8 +9,8 @@ ggplot(grad_n2o, aes(x = date, y = flux_mean, color = plot)) +
 
 
 library(RColorBrewer)
-ggplot(grad_n2o,aes(x = plot, y = flux_mean)) +
-  geom_boxplot(fill = "blue", color = "black", size = .05, alpha = 0.7) +
+ggplot(grad_n2o,aes(x = plot, y = flux_mean, fill = plot)) +
+  geom_boxplot(color = "black", size = .05, alpha = 0.7) +
   stat_boxplot(geom = "errorbar") +
   facet_grid(.~field)
 
